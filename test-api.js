@@ -7,6 +7,7 @@
  */
 
 const BASE_URL = 'http://localhost:3000/api/v1';
+const { cleanDatabase } = require('./src/database/clean');
 
 // Helper function to make HTTP requests
 async function makeRequest(method, url, body = null) {
@@ -42,10 +43,13 @@ async function testHealthCheck() {
 async function testCreateUsers() {
     console.log('\\n👥 Testing User Creation...');
 
+
+    // Use unique emails for each run
+    const unique = Date.now() + '-' + Math.floor(Math.random() * 10000);
     const users = [
-        { name: 'Test User 1', email: 'testuser1@example.com' },
-        { name: 'Test User 2', email: 'testuser2@example.com' },
-        { name: 'Test User 3', email: 'testuser3@example.com' }
+        { name: 'Test User 1', email: `testuser1+${unique}@example.com` },
+        { name: 'Test User 2', email: `testuser2+${unique}@example.com` },
+        { name: 'Test User 3', email: `testuser3+${unique}@example.com` }
     ];
 
     const createdUsers = [];
@@ -68,20 +72,20 @@ async function testCreateEvents() {
 
     const events = [
         {
-            title: 'Test Conference 2024',
-            dateTime: '2024-12-25T10:00:00Z',
+            title: 'Test Conference 2026',
+            dateTime: '2026-12-25T10:00:00Z',
             location: 'Test City A',
             capacity: 50
         },
         {
-            title: 'Workshop 2024',
-            dateTime: '2024-11-15T14:00:00Z',
+            title: 'Workshop 2026',
+            dateTime: '2026-11-15T14:00:00Z',
             location: 'Test City B',
             capacity: 25
         },
         {
-            title: 'Meetup 2024',
-            dateTime: '2024-12-01T18:00:00Z',
+            title: 'Meetup 2026',
+            dateTime: '2026-12-01T18:00:00Z',
             location: 'Test City A',
             capacity: 100
         }
@@ -202,7 +206,7 @@ async function testValidationErrors() {
     console.log('Testing invalid event (capacity > 1000)...');
     let result = await makeRequest('POST', `${BASE_URL}/events`, {
         title: 'Invalid Event',
-        dateTime: '2024-12-25T10:00:00Z',
+        dateTime: '2026-12-25T10:00:00Z',
         location: 'Test City',
         capacity: 1500
     });
@@ -252,6 +256,9 @@ async function runAllTests() {
     console.log('==========================================');
 
     try {
+        // Clean DB before running tests
+        console.log('🧹 Cleaning database...');
+        await cleanDatabase();
         // Basic functionality tests
         await testHealthCheck();
 
@@ -268,11 +275,11 @@ async function runAllTests() {
         await testValidationErrors();
         await testNotFoundErrors();
 
-        console.log('\\n✅ All tests completed!');
+        console.log('\n✅ All tests completed!');
         console.log('==========================================');
 
     } catch (error) {
-        console.error('\\n❌ Test execution failed:', error);
+        console.error('\n❌ Test execution failed:', error);
     }
 }
 
@@ -306,3 +313,129 @@ async function checkServer() {
     console.log('✅ Server is running!');
     await runAllTests();
 })();
+
+// --- Jest-style tests for API endpoints ---
+// To run these, you can use a test runner like Jest or Bun's test runner
+// These are basic examples; you may want to split them into separate files for a real project
+
+if (typeof test === 'function') {
+    test('Health check endpoint returns success', async () => {
+        const result = await makeRequest('GET', `${BASE_URL}/health`);
+        expect(result.ok).toBe(true);
+        expect(result.data.success).toBe(true);
+    });
+
+    test('User creation works', async () => {
+        const user = { name: 'Test Jest User', email: 'jestuser@example.com' };
+        const result = await makeRequest('POST', `${BASE_URL}/users`, user);
+        expect(result.ok).toBe(true);
+        expect(result.data.data.name).toBe(user.name);
+        expect(result.data.data.email).toBe(user.email);
+    });
+
+    test('Event creation with valid data works', async () => {
+        const event = {
+            title: 'Jest Event',
+            dateTime: '2026-12-25T10:00:00Z',
+            location: 'Jest City',
+            capacity: 10
+        };
+        const result = await makeRequest('POST', `${BASE_URL}/events`, event);
+        expect(result.ok).toBe(true);
+        expect(result.data.data.event.title).toBe(event.title);
+    });
+
+    test('Event creation with past date fails', async () => {
+        const event = {
+            title: 'Past Jest Event',
+            dateTime: '2020-01-01T10:00:00Z',
+            location: 'Jest City',
+            capacity: 10
+        };
+        const result = await makeRequest('POST', `${BASE_URL}/events`, event);
+        expect(result.ok).toBe(false);
+        expect(result.data.message).toMatch(/Validation failed/);
+    });
+
+    test('Event registration and duplicate registration', async () => {
+        // Create user
+        const user = { name: 'Reg User', email: 'reguser@example.com' };
+        const userRes = await makeRequest('POST', `${BASE_URL}/users`, user);
+        expect(userRes.ok).toBe(true);
+        const userId = userRes.data.data.id;
+        // Create event
+        const event = {
+            title: 'Reg Event',
+            dateTime: '2026-12-25T10:00:00Z',
+            location: 'Reg City',
+            capacity: 5
+        };
+        const eventRes = await makeRequest('POST', `${BASE_URL}/events`, event);
+        expect(eventRes.ok).toBe(true);
+        const eventId = eventRes.data.data.eventId;
+        // Register
+        const regRes = await makeRequest('POST', `${BASE_URL}/events/${eventId}/register`, { userId });
+        expect(regRes.ok).toBe(true);
+        // Duplicate registration
+        const dupRes = await makeRequest('POST', `${BASE_URL}/events/${eventId}/register`, { userId });
+        expect(dupRes.ok).toBe(false);
+    });
+
+    test('Get event details and stats', async () => {
+        // Create event
+        const event = {
+            title: 'Stats Event',
+            dateTime: '2026-12-25T10:00:00Z',
+            location: 'Stats City',
+            capacity: 5
+        };
+        const eventRes = await makeRequest('POST', `${BASE_URL}/events`, event);
+        expect(eventRes.ok).toBe(true);
+        const eventId = eventRes.data.data.eventId;
+        // Get details
+        const detailsRes = await makeRequest('GET', `${BASE_URL}/events/${eventId}`);
+        expect(detailsRes.ok).toBe(true);
+        expect(detailsRes.data.data.event.title).toBe(event.title);
+        // Get stats
+        const statsRes = await makeRequest('GET', `${BASE_URL}/events/${eventId}/stats`);
+        expect(statsRes.ok).toBe(true);
+    });
+
+    test('Cancel registration', async () => {
+        // Create user
+        const user = { name: 'Cancel User', email: 'canceluser@example.com' };
+        const userRes = await makeRequest('POST', `${BASE_URL}/users`, user);
+        expect(userRes.ok).toBe(true);
+        const userId = userRes.data.data.id;
+        // Create event
+        const event = {
+            title: 'Cancel Event',
+            dateTime: '2026-12-25T10:00:00Z',
+            location: 'Cancel City',
+            capacity: 5
+        };
+        const eventRes = await makeRequest('POST', `${BASE_URL}/events`, event);
+        expect(eventRes.ok).toBe(true);
+        const eventId = eventRes.data.data.eventId;
+        // Register
+        const regRes = await makeRequest('POST', `${BASE_URL}/events/${eventId}/register`, { userId });
+        expect(regRes.ok).toBe(true);
+        // Cancel
+        const cancelRes = await makeRequest('DELETE', `${BASE_URL}/events/${eventId}/register`, { userId });
+        expect(cancelRes.ok).toBe(true);
+    });
+
+    test('Not found errors for non-existent user and event', async () => {
+        const userRes = await makeRequest('GET', `${BASE_URL}/users/999999`);
+        expect(userRes.ok).toBe(false);
+        const eventRes = await makeRequest('GET', `${BASE_URL}/events/999999`);
+        expect(eventRes.ok).toBe(false);
+    });
+
+    test('Validation error for invalid user email', async () => {
+        const user = { name: 'Invalid Email', email: 'not-an-email' };
+        const result = await makeRequest('POST', `${BASE_URL}/users`, user);
+        expect(result.ok).toBe(false);
+        expect(result.data.message).toMatch(/Validation failed/);
+    });
+}

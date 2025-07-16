@@ -26,8 +26,12 @@ app.use(cors({
     optionsSuccessStatus: 200
 }));
 
-// Rate limiting
-app.use(generalLimiter);
+// Rate limiting (disable in development, test, or when running test script)
+const isTestEnv = process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development';
+const isTestScript = process.argv.some(arg => arg.includes('test-api.js'));
+if (!isTestEnv && !isTestScript) {
+    app.use(generalLimiter);
+}
 
 // Request logging
 app.use(requestLogger);

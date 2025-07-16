@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+
 // Production-ready connection pool configuration
 const poolConfig = {
     host: process.env.DB_HOST,
@@ -19,10 +20,10 @@ const poolConfig = {
     application_name: 'event-management-api'
 };
 
-// Add SSL configuration for production
-if (process.env.NODE_ENV === 'production') {
+// Always use SSL if DB_SSL is set (Render requires SSL for all connections)
+if (process.env.DB_SSL === 'true' || process.env.DB_SSL === '1') {
     poolConfig.ssl = {
-        rejectUnauthorized: false // Set to true in production with proper certificates
+        rejectUnauthorized: false // Accept self-signed certs (Render default)
     };
 }
 
