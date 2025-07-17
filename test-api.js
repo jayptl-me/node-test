@@ -270,6 +270,7 @@ async function runAllTests() {
         await testUpcomingEvents();
         await testEventStats(events);
         await testCancelRegistration(users, events);
+        await getAllUserEvents(users[0].id);
 
         // Error handling tests
         await testValidationErrors();

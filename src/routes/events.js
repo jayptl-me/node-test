@@ -27,4 +27,6 @@ router.delete('/:eventId/register', registrationLimiter, validateRegistration, e
 // Get event statistics
 router.get('/:eventId/stats', validateEventId, eventController.getEventStats);
 
+router.get('/:userId/events', validateEventId, eventController.getAllUserEvents);
+
 module.exports = router;

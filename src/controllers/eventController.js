@@ -161,6 +161,34 @@ const eventController = {
         } catch (error) {
             next(error);
         }
+    },
+
+    async getAllUserEvents(req, res, next) {
+        try {
+            const { userId } = req.params;
+
+            // Check if user exists
+            const user = await User.findById(userId);
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found'
+                });
+            }
+
+            const events = await Event.getAllUserEvents(userId);
+
+            res.json({
+                success: true,
+                message: 'User events retrieved successfully',
+                data: {
+                    count: events.length,
+                    events
+                }
+            });
+        } catch (error) {
+            next(error);
+        }
     }
 };
 

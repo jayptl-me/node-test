@@ -1,6 +1,23 @@
 const pool = require('../database/config');
 
 class Event {
+    static async getAllUserEvents(userId) {
+        const client = await pool.connect();
+        try {
+            const result = await client.query(`
+                SELECT e.*
+                FROM events e
+                INNER JOIN event_registrations er ON e.id = er.event_id
+                WHERE er.user_id = $1
+                  AND e.date_time >= NOW() - INTERVAL '1 month'
+                  AND e.date_time <= NOW()
+                ORDER BY e.date_time ASC
+            `, [userId]);
+            return result.rows;
+        } finally {
+            client.release();
+        }
+    }
     static async create(title, dateTime, location, capacity) {
         const client = await pool.connect();
         try {
